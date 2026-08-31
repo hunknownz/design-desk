@@ -1,0 +1,12 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+.playwright-cli/
+coverage/
+data/project.local.json
+dist/
+node_modules/
+output/
+test-results/
+*.tsbuildinfo

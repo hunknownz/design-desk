@@ -1,0 +1,22 @@
+{
+  "revision": 1,
+  "updatedAt": "2026-09-01T00:00:00.000Z",
+  "project": {
+    "name": "Sample Website Review",
+    "subtitle": "Synthetic project data",
+    "version": "0.1.0",
+    "description": "A client-neutral sample used to verify Design Desk locally.",
+    "siteUrl": "https://example.test",
+    "demoUrl": "/demo/",
+    "demoVersion": "sample-v1"
+  },
+  "pages": [
+    { "id": "home", "label": "Home", "description": "Sample landing page", "path": "/" },
+    { "id": "products", "label": "Products", "description": "Sample catalog page", "path": "/products/" },
+    { "id": "about", "label": "About", "description": "Sample company page", "path": "/about/" }
+  ],
+  "tasks": [],
+  "annotations": [],
+  "activity": [],
+  "deletedDesignNoteIds": []
+}
