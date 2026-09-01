@@ -8,6 +8,7 @@ export interface ProjectInfo {
   version: string;
   description: string;
   siteUrl: string;
+  previewUrl?: string;
   demoUrl: string;
   demoVersion: string;
 }

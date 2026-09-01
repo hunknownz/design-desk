@@ -25,4 +25,12 @@ describe('TopBar', () => {
     expect(onLogout).toHaveBeenCalledOnce();
     expect(screen.queryByText('待办')).not.toBeInTheDocument();
   });
+
+  it('opens an optional standalone website preview without coupling the workbench to a project', () => {
+    render(<TopBar viewport="desktop" user="Reviewer" reviewOpen={false} previewUrl="https://preview.example.test" onViewportChange={() => {}} onToggleReview={() => {}} onLogout={() => {}} />);
+    const previewLink = screen.getByRole('link', { name: '在新标签页打开网站预发布效果' });
+    expect(previewLink).toHaveAttribute('href', 'https://preview.example.test');
+    expect(previewLink).toHaveAttribute('target', '_blank');
+    expect(previewLink).toHaveAttribute('rel', 'noopener noreferrer');
+  });
 });

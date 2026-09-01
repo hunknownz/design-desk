@@ -167,7 +167,7 @@ export default function App() {
   }
 
   return <div className={`workspace ${drawerOpen ? 'is-review-open' : ''} ${selectedAnnotationId ? 'is-review-detail' : 'is-review-list'}`}>
-    <TopBar viewport={viewport} user={user} reviewOpen={drawerOpen} onViewportChange={changeViewport} onToggleReview={() => setDrawerOpen((value) => !value)} onLogout={logout} />
+    <TopBar viewport={viewport} user={user} reviewOpen={drawerOpen} previewUrl={state.project.previewUrl} onViewportChange={changeViewport} onToggleReview={() => setDrawerOpen((value) => !value)} onLogout={logout} />
     <BrowserBar url={displayUrl} annotationMode={annotationMode} canGoBack={canGoBack} canGoForward={canGoForward} onBack={() => navigateHistory(-1)} onForward={() => navigateHistory(1)} onRefresh={() => { setRefreshToken((value) => value + 1); setAnnotationMode(false); }} onToggleAnnotation={() => { setAnnotationMode((value) => !value); setDrawerOpen(false); }} />
     <DemoCanvas state={viewportState} viewport={viewport} currentPageId={currentPageId} annotationMode={annotationMode} selectedAnnotationId={selectedAnnotationId} refreshToken={refreshToken} onPageChange={navigateTo} onOpenAnnotation={openAnnotation} onCreateAnnotation={createAnnotation} onCancelAnnotationMode={() => setAnnotationMode(false)} />
     <ReviewDrawer open={drawerOpen} state={viewportState} selectedAnnotationId={selectedAnnotationId} onClose={() => setDrawerOpen(false)} onShowList={() => setSelectedAnnotationId(null)} onOpenAnnotation={openAnnotation} onStatusChange={changeAnnotationStatus} onDeleteAnnotation={deleteAnnotation} onDeleteComment={deleteComment} onReply={reply} />

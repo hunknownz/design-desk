@@ -145,6 +145,7 @@ async function readState() {
   state.project = {
     ...state.project,
     siteUrl: state.project?.siteUrl || process.env.DESIGN_DESK_SITE_URL || 'https://example.test',
+    previewUrl: state.project?.previewUrl || process.env.DESIGN_DESK_PREVIEW_URL || '',
     demoUrl: state.project?.demoUrl || process.env.DESIGN_DESK_DEMO_URL || '/demo/',
     demoVersion: state.project?.demoVersion || 'sample-v1'
   };
