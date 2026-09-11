@@ -22,4 +22,9 @@ describe('annotation geometry', () => {
   it('does not move a marker that already has safe clearance', () => {
     expect(clampMarker({ x: 260, y: 120 }, { width: 1200, height: 800 })).toEqual({ x: 238, y: 98 });
   });
+
+  it('keeps an inverse-scaled marker inside the visible preview edges', () => {
+    expect(clampMarker({ x: 0, y: 0 }, { width: 1200, height: 800 }, 44, 2, .5)).toEqual({ x: 26, y: 26 });
+    expect(clampMarker({ x: 1200, y: 800 }, { width: 1200, height: 800 }, 44, 2, .5)).toEqual({ x: 1130, y: 730 });
+  });
 });

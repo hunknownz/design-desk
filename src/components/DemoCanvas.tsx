@@ -12,12 +12,15 @@ interface Props {
   currentPageId: string;
   annotationMode: boolean;
   selectedAnnotationId: string | null;
+  focusRequest: AnnotationFocusRequest | null;
   refreshToken: number;
   onPageChange: (pageId: string) => void;
   onOpenAnnotation: (id: string) => void;
   onCreateAnnotation: (selection: PendingAnnotation, note: string) => Promise<void>;
   onCancelAnnotationMode: () => void;
 }
+
+export type AnnotationFocusRequest = { annotationId: string; sequence: number };
 
 const emptyMetrics: DemoMetrics = { documentWidth: 1440, documentHeight: 900, viewportWidth: 1440, viewportHeight: 900, scrollX: 0, scrollY: 0 };
 type ViewRect = { left: number; top: number; width: number; height: number };
@@ -38,7 +41,7 @@ export function DemoCanvas(props: Props) {
   const [previewLayout, setPreviewLayout] = useState<PreviewLayout>({ frameWidth: 1440, frameHeight: 900, scale: 1 });
 
   const src = useMemo(() => buildDemoUrl(state.project.demoUrl, props.currentPageId, state.project.demoVersion), [state.project.demoUrl, state.project.demoVersion, props.currentPageId]);
-  const selectedAnnotation = useMemo(() => state.annotations.find((annotation) => annotation.id === props.selectedAnnotationId) || null, [props.selectedAnnotationId, state.annotations]);
+  const focusedAnnotation = useMemo(() => state.annotations.find((annotation) => annotation.id === props.focusRequest?.annotationId) || null, [props.focusRequest?.annotationId, state.annotations]);
   const activeAnnotations = useMemo(() => state.annotations.filter((annotation) => annotation.status === 'open'), [state.annotations]);
   const pageAnnotations = useMemo(() => activeAnnotations.filter((annotation) => annotation.pageId === props.currentPageId && annotationViewport(annotation) === props.viewport), [activeAnnotations, props.currentPageId, props.viewport]);
   const targetIds = useMemo(() => [...new Set(pageAnnotations.map((annotation) => annotation.targetId).filter((value): value is string => Boolean(value)))], [pageAnnotations]);
@@ -56,8 +59,8 @@ export function DemoCanvas(props: Props) {
         setMetrics(message.metrics);
         locateTargets();
       }
-      if (message.type === 'design-desk:demo-ready' && selectedAnnotation?.targetId && selectedAnnotation.pageId === props.currentPageId) {
-        post({ type: 'design-desk:focus-target', targetId: selectedAnnotation.targetId });
+      if (message.type === 'design-desk:demo-ready' && focusedAnnotation?.targetId && focusedAnnotation.pageId === props.currentPageId) {
+        post({ type: 'design-desk:focus-target', targetId: focusedAnnotation.targetId });
       }
       if (message.type === 'design-desk:page-change' && state.pages.some((page) => page.id === message.pageId)) props.onPageChange(message.pageId);
       if (message.type === 'design-desk:inspect-result') {
@@ -70,13 +73,13 @@ export function DemoCanvas(props: Props) {
     }
     window.addEventListener('message', receive);
     return () => window.removeEventListener('message', receive);
-  }, [locateTargets, post, props.currentPageId, props.onPageChange, selectedAnnotation, state.pages]);
+  }, [focusedAnnotation, locateTargets, post, props.currentPageId, props.onPageChange, state.pages]);
 
   useEffect(() => {
-    if (!selectedAnnotation?.targetId || selectedAnnotation.pageId !== props.currentPageId) return;
-    const timer = window.setTimeout(() => post({ type: 'design-desk:focus-target', targetId: selectedAnnotation.targetId }), 80);
+    if (!focusedAnnotation?.targetId || focusedAnnotation.pageId !== props.currentPageId) return;
+    const timer = window.setTimeout(() => post({ type: 'design-desk:focus-target', targetId: focusedAnnotation.targetId }), 80);
     return () => window.clearTimeout(timer);
-  }, [post, props.currentPageId, props.refreshToken, selectedAnnotation]);
+  }, [focusedAnnotation, post, props.currentPageId, props.focusRequest?.sequence, props.refreshToken]);
 
   useEffect(() => {
     if (!props.annotationMode) { setHoverRect(null); if (!pending) setSelectionRect(null); }
@@ -211,7 +214,8 @@ export function DemoCanvas(props: Props) {
       style={{
         width: previewLayout.frameWidth,
         height: previewLayout.frameHeight,
-        '--preview-scale': previewLayout.scale
+        '--preview-scale': previewLayout.scale,
+        '--marker-inverse-scale': 1 / Math.max(.001, previewLayout.scale)
       } as React.CSSProperties}
     >
       <div className="preview-surface" ref={surfaceRef}>
@@ -219,7 +223,7 @@ export function DemoCanvas(props: Props) {
         <div className={`annotation-layer ${props.annotationMode ? 'is-enabled' : ''}`} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerLeave={() => !pointerRef.current && setHoverRect(null)}>
           {props.annotationMode && hoverRect && !selectionRect && <Selection rect={hoverRect} element />}
           {selectionRect && <Selection rect={selectionRect} element={pending?.selectionType === 'element'} />}
-          {pageAnnotations.map((annotation) => <Marker key={annotation.id} annotation={annotation} displayNumber={annotationDisplayNumber(annotation, activeAnnotations.findIndex((item) => item.id === annotation.id) + 1)} metrics={metrics} targetPoint={annotation.targetId ? targetPoints[annotation.targetId] : undefined} selected={props.selectedAnnotationId === annotation.id} onOpen={props.onOpenAnnotation} />)}
+          {pageAnnotations.map((annotation) => <Marker key={annotation.id} annotation={annotation} displayNumber={annotationDisplayNumber(annotation, activeAnnotations.findIndex((item) => item.id === annotation.id) + 1)} metrics={metrics} renderScale={previewLayout.scale} targetPoint={annotation.targetId ? targetPoints[annotation.targetId] : undefined} selected={props.selectedAnnotationId === annotation.id} onOpen={props.onOpenAnnotation} />)}
         </div>
         {pending && <AnnotationComposer selection={pending} surfaceRef={surfaceRef} onCancel={cancelPending} onSubmit={submit} />}
       </div>
@@ -231,10 +235,10 @@ function Selection({ rect, element = false }: { rect: ViewRect; element?: boolea
   return <div className={`selection-box ${element ? 'is-element' : ''}`} style={{ left: rect.left, top: rect.top, width: rect.width, height: rect.height }} />;
 }
 
-function Marker({ annotation, displayNumber, metrics, targetPoint, selected, onOpen }: { annotation: Annotation; displayNumber: number; metrics: DemoMetrics; targetPoint?: LocatedTarget['point']; selected: boolean; onOpen: (id: string) => void }) {
+function Marker({ annotation, displayNumber, metrics, renderScale, targetPoint, selected, onOpen }: { annotation: Annotation; displayNumber: number; metrics: DemoMetrics; renderScale: number; targetPoint?: LocatedTarget['point']; selected: boolean; onOpen: (id: string) => void }) {
   const point = targetPoint || markerPosition({ x: annotation.x + (annotation.w || 0), y: annotation.y }, metrics);
   if (point.x < -44 || point.y < -44 || point.x > metrics.viewportWidth + 44 || point.y > metrics.viewportHeight + 44) return null;
-  const marker = clampMarker(point, { width: metrics.viewportWidth, height: metrics.viewportHeight });
+  const marker = clampMarker(point, { width: metrics.viewportWidth, height: metrics.viewportHeight }, 44, 2, renderScale);
   return <button className={`annotation-marker ${selected ? 'is-selected' : ''}`} style={{ left: marker.x, top: marker.y }} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); onOpen(annotation.id); }} aria-label={`打开批注 ${formatAnnotationNumber(displayNumber)}`}><span className="annotation-marker-core" aria-hidden="true">{displayNumber}</span></button>;
 }
 

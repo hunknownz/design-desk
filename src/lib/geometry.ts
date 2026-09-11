@@ -38,11 +38,18 @@ export function clampMarker(
   center: Point,
   viewport: { width: number; height: number },
   size = 44,
-  margin = 2
+  margin = 2,
+  renderScale = 1
 ): Point {
   const half = size / 2;
+  const safeScale = Number.isFinite(renderScale) && renderScale > 0 ? renderScale : 1;
+  const visibleHalf = half / safeScale;
+  const visibleMargin = margin / safeScale;
+  const minimumCenter = visibleHalf + visibleMargin;
+  const maximumX = Math.max(minimumCenter, viewport.width - minimumCenter);
+  const maximumY = Math.max(minimumCenter, viewport.height - minimumCenter);
   return {
-    x: Math.max(margin, Math.min(center.x - half, viewport.width - size - margin)),
-    y: Math.max(margin, Math.min(center.y - half, viewport.height - size - margin))
+    x: Math.max(minimumCenter, Math.min(center.x, maximumX)) - half,
+    y: Math.max(minimumCenter, Math.min(center.y, maximumY)) - half
   };
 }

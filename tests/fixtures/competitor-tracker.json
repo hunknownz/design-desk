@@ -1,0 +1,26 @@
+{
+  "title": "Competitor tracker",
+  "subtitle": "1 synthetic brand",
+  "updatedAt": "2026-09-11",
+  "rankingNote": "Synthetic ordering for the end-to-end contract only.",
+  "coverageNote": "Client-neutral synthetic fixture.",
+  "items": [
+    {
+      "id": "northline",
+      "rank": 1,
+      "name": "Northline",
+      "url": "https://northline.example",
+      "market": "Sample market",
+      "sources": ["project-research"],
+      "annotationPriority": true,
+      "priorityReason": "Synthetic active-review example.",
+      "learn": ["Role-based navigation"],
+      "seo": {
+        "level": "pending",
+        "label": "Pending",
+        "summary": "No real market evidence is used in this fixture.",
+        "evidenceStatus": "synthetic-test-data"
+      }
+    }
+  ]
+}
