@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { api } from './api';
 import { BrowserBar } from './components/BrowserBar';
-import { DemoCanvas } from './components/DemoCanvas';
+import { CompetitorDrawer } from './components/CompetitorDrawer';
+import { DemoCanvas, type AnnotationFocusRequest } from './components/DemoCanvas';
 import { LoginScreen } from './components/LoginScreen';
 import { ReviewDrawer } from './components/ReviewDrawer';
 import { TopBar } from './components/TopBar';
@@ -11,6 +12,7 @@ import type { AnnotationStatus, PendingAnnotation, ProjectState, Viewport } from
 
 type UndoStatus = { id: string; status: AnnotationStatus };
 type ToastState = { message: string; undo?: UndoStatus };
+type AnnotationOpenSource = 'marker' | 'drawer';
 
 export default function App() {
   const [user, setUser] = useState<string | null>(null);
@@ -20,12 +22,19 @@ export default function App() {
   const [currentPageId, setCurrentPageId] = useState('home');
   const [annotationMode, setAnnotationMode] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [competitorOpen, setCompetitorOpen] = useState(false);
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null);
+  const [focusRequest, setFocusRequest] = useState<AnnotationFocusRequest | null>(null);
+  const [reviewLayoutSettling, setReviewLayoutSettling] = useState(false);
   const [refreshToken, setRefreshToken] = useState(0);
   const [, setHistoryRevision] = useState(0);
   const pageHistory = useRef(['home']);
   const pageHistoryIndex = useRef(0);
   const toastTimer = useRef<number | null>(null);
+  const focusSequence = useRef(0);
+  const reviewLayoutTimer = useRef<number | null>(null);
+  const reviewLayoutKey = `${drawerOpen ? 'review-open' : 'review-closed'}:${competitorOpen ? 'competitor-open' : 'competitor-closed'}:${selectedAnnotationId ? 'detail' : 'list'}`;
+  const previousReviewLayoutKey = useRef(reviewLayoutKey);
   const [toast, setToast] = useState<ToastState | null>(null);
 
   const loadState = useCallback(async () => setState(await api.state()), []);
@@ -37,7 +46,20 @@ export default function App() {
 
   useEffect(() => () => {
     if (toastTimer.current) window.clearTimeout(toastTimer.current);
+    if (reviewLayoutTimer.current) window.clearTimeout(reviewLayoutTimer.current);
   }, []);
+
+  useLayoutEffect(() => {
+    if (previousReviewLayoutKey.current === reviewLayoutKey) return;
+    previousReviewLayoutKey.current = reviewLayoutKey;
+    if (!window.matchMedia('(min-width: 1100px)').matches) return;
+    if (reviewLayoutTimer.current) window.clearTimeout(reviewLayoutTimer.current);
+    setReviewLayoutSettling(true);
+    reviewLayoutTimer.current = window.setTimeout(() => {
+      setReviewLayoutSettling(false);
+      reviewLayoutTimer.current = null;
+    }, 340);
+  }, [reviewLayoutKey]);
 
   useEffect(() => {
     api.session().then(async (session) => {
@@ -86,19 +108,23 @@ export default function App() {
     setCurrentPageId(pageHistory.current[nextIndex]);
   }
 
-  function openAnnotation(id: string) {
+  function openAnnotation(id: string, source: AnnotationOpenSource) {
     const annotation = state?.annotations.find((item) => item.id === id);
     if (!annotation) return;
+    setFocusRequest(source === 'drawer' ? { annotationId: id, sequence: ++focusSequence.current } : null);
     setViewport(annotationViewport(annotation));
     setSelectedAnnotationId(id);
     navigateTo(annotation.pageId);
+    setCompetitorOpen(false);
     setDrawerOpen(true);
   }
 
   async function createAnnotation(selection: PendingAnnotation, note: string) {
     const created = await api.createAnnotation(selection, note);
+    setFocusRequest(null);
     setSelectedAnnotationId(created.id);
     await loadState();
+    setCompetitorOpen(false);
     setDrawerOpen(true);
     notify('批注已保存并同步');
   }
@@ -164,13 +190,25 @@ export default function App() {
     setViewport(nextViewport);
     setAnnotationMode(false);
     setSelectedAnnotationId(null);
+    setFocusRequest(null);
   }
 
-  return <div className={`workspace ${drawerOpen ? 'is-review-open' : ''} ${selectedAnnotationId ? 'is-review-detail' : 'is-review-list'}`}>
-    <TopBar viewport={viewport} user={user} reviewOpen={drawerOpen} previewUrl={state.project.previewUrl} onViewportChange={changeViewport} onToggleReview={() => setDrawerOpen((value) => !value)} onLogout={logout} />
-    <BrowserBar url={displayUrl} annotationMode={annotationMode} canGoBack={canGoBack} canGoForward={canGoForward} onBack={() => navigateHistory(-1)} onForward={() => navigateHistory(1)} onRefresh={() => { setRefreshToken((value) => value + 1); setAnnotationMode(false); }} onToggleAnnotation={() => { setAnnotationMode((value) => !value); setDrawerOpen(false); }} />
-    <DemoCanvas state={viewportState} viewport={viewport} currentPageId={currentPageId} annotationMode={annotationMode} selectedAnnotationId={selectedAnnotationId} refreshToken={refreshToken} onPageChange={navigateTo} onOpenAnnotation={openAnnotation} onCreateAnnotation={createAnnotation} onCancelAnnotationMode={() => setAnnotationMode(false)} />
-    <ReviewDrawer open={drawerOpen} state={viewportState} selectedAnnotationId={selectedAnnotationId} onClose={() => setDrawerOpen(false)} onShowList={() => setSelectedAnnotationId(null)} onOpenAnnotation={openAnnotation} onStatusChange={changeAnnotationStatus} onDeleteAnnotation={deleteAnnotation} onDeleteComment={deleteComment} onReply={reply} />
+  return <div className={`workspace ${drawerOpen ? 'is-review-open' : ''} ${competitorOpen ? 'is-competitor-open' : ''} ${selectedAnnotationId ? 'is-review-detail' : 'is-review-list'} ${reviewLayoutSettling ? 'is-review-layout-settling' : ''}`}>
+    <TopBar brandName={state.project.workbenchName || 'Design Desk'} viewport={viewport} user={user} reviewOpen={drawerOpen} competitorOpen={competitorOpen} competitorCount={state.competitorTracker?.items.length} previewUrl={state.project.previewUrl} onViewportChange={changeViewport} onToggleCompetitors={() => setCompetitorOpen((value) => {
+      const next = !value;
+      if (next) {
+        setDrawerOpen(false);
+        setAnnotationMode(false);
+      }
+      return next;
+    })} onToggleReview={() => {
+      setCompetitorOpen(false);
+      setDrawerOpen((value) => !value);
+    }} onLogout={logout} />
+    <BrowserBar url={displayUrl} annotationMode={annotationMode} canGoBack={canGoBack} canGoForward={canGoForward} onBack={() => navigateHistory(-1)} onForward={() => navigateHistory(1)} onRefresh={() => { setRefreshToken((value) => value + 1); setAnnotationMode(false); }} onToggleAnnotation={() => { setAnnotationMode((value) => !value); setCompetitorOpen(false); setDrawerOpen(false); }} />
+    <DemoCanvas state={viewportState} viewport={viewport} currentPageId={currentPageId} annotationMode={annotationMode} selectedAnnotationId={selectedAnnotationId} focusRequest={focusRequest} refreshToken={refreshToken} onPageChange={navigateTo} onOpenAnnotation={(id) => openAnnotation(id, 'marker')} onCreateAnnotation={createAnnotation} onCancelAnnotationMode={() => setAnnotationMode(false)} />
+    <ReviewDrawer open={drawerOpen} state={viewportState} selectedAnnotationId={selectedAnnotationId} onClose={() => setDrawerOpen(false)} onShowList={() => { setSelectedAnnotationId(null); setFocusRequest(null); }} onOpenAnnotation={(id) => openAnnotation(id, 'drawer')} onStatusChange={changeAnnotationStatus} onDeleteAnnotation={deleteAnnotation} onDeleteComment={deleteComment} onReply={reply} />
+    {state.competitorTracker && <CompetitorDrawer open={competitorOpen} tracker={state.competitorTracker} onClose={() => setCompetitorOpen(false)} />}
     <div className={`toast ${toast ? 'is-visible' : ''}`} role="status" aria-live="polite">
       <span>{toast?.message}</span>
       {toast?.undo && <button onClick={undoToastAction}>撤销</button>}

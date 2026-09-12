@@ -9,6 +9,7 @@ const APP_DIR = process.env.DESIGN_DESK_APP_DIR || path.join(ROOT, 'dist');
 const DEMO_DIR = process.env.DESIGN_DESK_DEMO_DIR || path.join(ROOT, 'demo-site');
 const DATA_FILE = process.env.DESIGN_DESK_DATA_FILE || path.join(ROOT, 'data', 'project.json');
 const DESIGN_NOTES_FILE = process.env.DESIGN_DESK_DESIGN_NOTES_FILE || path.join(ROOT, 'data', 'design-notes.json');
+const COMPETITOR_TRACKER_FILE = process.env.DESIGN_DESK_COMPETITOR_TRACKER_FILE || path.join(path.dirname(DATA_FILE), 'competitor-tracker.json');
 const PORT = Number(process.env.PORT || 4471);
 const HOST = process.env.HOST || '127.0.0.1';
 const ACCESS_CODE = String(process.env.DESIGN_DESK_REVIEW_CODE || '');
@@ -142,6 +143,8 @@ function assignAnnotationSequences(annotations) {
 
 async function readState() {
   const state = JSON.parse(await fs.readFile(DATA_FILE, 'utf8'));
+  const competitorTracker = await readOptionalJson(COMPETITOR_TRACKER_FILE);
+  if (competitorTracker) state.competitorTracker = competitorTracker;
   state.project = {
     ...state.project,
     siteUrl: state.project?.siteUrl || process.env.DESIGN_DESK_SITE_URL || 'https://example.test',
@@ -208,11 +211,22 @@ async function readDesignNotes() {
   }
 }
 
+async function readOptionalJson(file) {
+  try {
+    return JSON.parse(await fs.readFile(file, 'utf8'));
+  } catch (error) {
+    if (error?.code === 'ENOENT') return null;
+    throw error;
+  }
+}
+
 async function writeState(state) {
   state.revision = Number(state.revision || 0) + 1;
   state.updatedAt = new Date().toISOString();
+  const persistedState = { ...state };
+  delete persistedState.competitorTracker;
   const tempFile = `${DATA_FILE}.tmp`;
-  await fs.writeFile(tempFile, `${JSON.stringify(state, null, 2)}\n`, 'utf8');
+  await fs.writeFile(tempFile, `${JSON.stringify(persistedState, null, 2)}\n`, 'utf8');
   await fs.rename(tempFile, DATA_FILE);
   broadcast({ type: 'state-changed', revision: state.revision, updatedAt: state.updatedAt });
 }

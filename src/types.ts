@@ -4,6 +4,7 @@ export type AnnotationStatus = 'open' | 'resolved' | 'archived';
 
 export interface ProjectInfo {
   name: string;
+  workbenchName?: string;
   subtitle: string;
   version: string;
   description: string;
@@ -11,6 +12,37 @@ export interface ProjectInfo {
   previewUrl?: string;
   demoUrl: string;
   demoVersion: string;
+}
+
+export type CompetitorSource = 'client-provided' | 'project-research';
+export type CompetitorSeoLevel = 'strong' | 'moderate' | 'weak' | 'restricted' | 'pending';
+
+export interface CompetitorProfile {
+  id: string;
+  rank: number;
+  name: string;
+  url: string;
+  market?: string;
+  sources: CompetitorSource[];
+  annotationPriority?: boolean;
+  priorityReason?: string;
+  learn: string[];
+  seo: {
+    level: CompetitorSeoLevel;
+    label: string;
+    summary: string;
+    observedAt?: string;
+    evidenceStatus: string;
+  };
+}
+
+export interface CompetitorTracker {
+  title: string;
+  subtitle?: string;
+  updatedAt: string;
+  rankingNote: string;
+  coverageNote?: string;
+  items: CompetitorProfile[];
 }
 
 export interface PageInfo {
@@ -112,6 +144,7 @@ export interface ProjectState {
   tasks: ReviewTask[];
   annotations: Annotation[];
   activity: Activity[];
+  competitorTracker?: CompetitorTracker;
   deletedDesignNoteIds?: string[];
 }
 

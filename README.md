@@ -27,6 +27,7 @@ The server intentionally refuses to start without `DESIGN_DESK_REVIEW_CODE`.
 - `DESIGN_DESK_REVIEW_CODE`: required reviewer access code.
 - `DESIGN_DESK_SESSION_SECRET`: recommended independent session-signing secret.
 - `DESIGN_DESK_DATA_FILE`: writable runtime state file. Do not point deployments at the committed sample seed.
+- `DESIGN_DESK_COMPETITOR_TRACKER_FILE`: optional client-owned competitor research JSON. Keep it outside this public repository.
 - `DESIGN_DESK_DEMO_DIR` or `DESIGN_DESK_DEMO_URL`: local or external website preview.
 - `DESIGN_DESK_SITE_URL`: address displayed in the workbench browser bar.
 
